@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -44,12 +44,10 @@ func main() {
 
 	{
 		var (
-			err error
-			i   int
+			err    error
+			i      int
+			tmpDir = os.TempDir()
 		)
-
-		tmpDir := os.TempDir()
-
 		if _, err = os.Stat(tmpDir); err != nil {
 			panic(err)
 		}
@@ -86,17 +84,15 @@ func main() {
 
 	// Read from the pipe until the pipe is closed
 	reader := bufio.NewReader(file)
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				return
-			}
-			log.Fatal(err)
-			return
-		}
+	dec := json.NewDecoder(reader)
 
-		fmt.Println(line)
+	// Runtime loop to decode json objects into the interface
+	for dec.More() {
+		var i interface{}
+		if err := dec.Decode(&i); err != nil {
+			log.Fatal(err)
+		}
+		log.Println(&i, i)
 	}
 
 	// WRITE PIPE
