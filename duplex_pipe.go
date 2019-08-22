@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"golang.org/x/sys/unix"
 )
 
 // Random number state.
@@ -79,13 +77,13 @@ func NewDuplexPipe() (DuplexPipe, error) {
 	fmt.Println()
 
 	// READ PIPE
-	inPipe, err := makePipe(pipeIn, os.O_CREATE)
+	inPipe, err := makePipe(pipeIn, os.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}
 
 	// WRITE PIPE
-	outPipe, err := makePipe(pipeOut, os.O_WRONLY|os.O_CREATE|os.O_APPEND)
+	outPipe, err := makePipe(pipeOut, os.O_WRONLY|os.O_APPEND)
 	if err != nil {
 		return nil, err
 	}
@@ -96,26 +94,13 @@ func NewDuplexPipe() (DuplexPipe, error) {
 	}, nil
 }
 
-func makePipe(name string, flag int) (*pipe, error) {
-	if err := unix.Mkfifo(name, 0600); err != nil {
-		return nil, err
-	}
-
-	return &pipe{
-		name:   name,
-		flag:   flag,
-		opened: false,
-		closed: false,
-	}, nil
-}
-
 // DuplexPipe is the interface to interact with the pipes that are created
 type DuplexPipe interface {
 	io.ReadWriteCloser
 }
 
 type duplexPipe struct {
-	inPipe, outPipe pipe
+	inPipe, outPipe fifopipe
 }
 
 func (pipe *duplexPipe) Write(p []byte) (n int, err error) {
@@ -129,55 +114,6 @@ func (pipe *duplexPipe) Read(p []byte) (n int, err error) {
 func (pipe *duplexPipe) Close() (err error) {
 	err = pipe.outPipe.Close()
 	if e := pipe.inPipe.Close(); e != nil {
-		err = e
-	}
-	return
-}
-
-type pipe struct {
-	name   string
-	flag   int
-	file   *os.File
-	opened bool
-	closed bool
-}
-
-func (pipe *pipe) Write(p []byte) (n int, err error) {
-	if err = pipe.tryOpen(); err != nil {
-		return
-	}
-	return pipe.file.Write(p)
-}
-
-func (pipe *pipe) Read(p []byte) (n int, err error) {
-	if err = pipe.tryOpen(); err != nil {
-		return
-	}
-	return pipe.file.Read(p)
-}
-
-func (pipe *pipe) tryOpen() (err error) {
-	if !pipe.opened {
-		err = pipe.Open()
-	} else if pipe.closed {
-		err = errors.New("Pipe has already been closed")
-	}
-	return
-}
-
-func (pipe *pipe) Open() (err error) {
-	if pipe.opened {
-		return errors.New("Pipes can't be reopened")
-	}
-	pipe.file, err = os.OpenFile(pipe.name, pipe.flag, os.ModeNamedPipe)
-	return
-}
-
-// Close will close all file connections and delete all the pipes
-// an attempt is made for every opperation even if the last fails
-func (pipe *pipe) Close() (err error) {
-	err = pipe.file.Close()
-	if e := os.Remove(pipe.name); e != nil {
 		err = e
 	}
 	return

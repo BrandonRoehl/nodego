@@ -47,7 +47,7 @@ func TestSinglePipe(t *testing.T) {
 	pipeName, _, err := getRandomPipeNames()
 	assert.NoError(t, err, "Expected error to be nil when getting names")
 
-	pipe, err := makePipe(pipeName, os.O_RDWR|os.O_CREATE)
+	pipe, err := makePipe(pipeName, os.O_RDWR)
 	assert.NoError(t, err, "Expected error to be nil when creating pipe")
 
 	// Defer close for a premeture test termination cleanup
