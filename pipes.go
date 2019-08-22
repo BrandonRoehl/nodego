@@ -78,29 +78,34 @@ func NewDuplexPipe() (DuplexPipe, error) {
 	fmt.Println(pipeOut)
 	fmt.Println()
 
-	if err := unix.Mkfifo(pipeIn, 0600); err != nil {
-		return nil, err
-	}
-	if err := unix.Mkfifo(pipeOut, 0600); err != nil {
-		return nil, err
-	}
-
 	// READ PIPE
-	inFile, err := os.OpenFile(pipeIn, os.O_CREATE, os.ModeNamedPipe)
+	inPipe, err := makePipe(pipeIn, os.O_CREATE)
 	if err != nil {
 		return nil, err
 	}
 
 	// WRITE PIPE
-	outFile, err := os.OpenFile(pipeOut, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	outPipe, err := makePipe(pipeOut, os.O_WRONLY|os.O_CREATE|os.O_APPEND)
 	if err != nil {
-		inFile.Close()
 		return nil, err
 	}
 
 	return &duplexPipe{
-		inPipe:  inFile,
-		outPipe: outFile,
+		inPipe:  *inPipe,
+		outPipe: *outPipe,
+	}, nil
+}
+
+func makePipe(name string, flag int) (*pipe, error) {
+	if err := unix.Mkfifo(name, 0600); err != nil {
+		return nil, err
+	}
+
+	return &pipe{
+		name:   name,
+		flag:   flag,
+		opened: false,
+		closed: false,
 	}, nil
 }
 
@@ -110,7 +115,7 @@ type DuplexPipe interface {
 }
 
 type duplexPipe struct {
-	inPipe, outPipe *os.File
+	inPipe, outPipe pipe
 }
 
 func (pipe *duplexPipe) Write(p []byte) (n int, err error) {
@@ -118,20 +123,61 @@ func (pipe *duplexPipe) Write(p []byte) (n int, err error) {
 }
 
 func (pipe *duplexPipe) Read(p []byte) (n int, err error) {
-	return pipe.inPipe.Write(p)
+	return pipe.inPipe.Read(p)
+}
+
+func (pipe *duplexPipe) Close() (err error) {
+	err = pipe.outPipe.Close()
+	if e := pipe.inPipe.Close(); e != nil {
+		err = e
+	}
+	return
+}
+
+type pipe struct {
+	name   string
+	flag   int
+	file   *os.File
+	opened bool
+	closed bool
+}
+
+func (pipe *pipe) Write(p []byte) (n int, err error) {
+	if err = pipe.tryOpen(); err != nil {
+		return
+	}
+	return pipe.file.Write(p)
+}
+
+func (pipe *pipe) Read(p []byte) (n int, err error) {
+	if err = pipe.tryOpen(); err != nil {
+		return
+	}
+	return pipe.file.Read(p)
+}
+
+func (pipe *pipe) tryOpen() (err error) {
+	if !pipe.opened {
+		err = pipe.Open()
+	} else if pipe.closed {
+		err = errors.New("Pipe has already been closed")
+	}
+	return
+}
+
+func (pipe *pipe) Open() (err error) {
+	if pipe.opened {
+		return errors.New("Pipes can't be reopened")
+	}
+	pipe.file, err = os.OpenFile(pipe.name, pipe.flag, os.ModeNamedPipe)
+	return
 }
 
 // Close will close all file connections and delete all the pipes
 // an attempt is made for every opperation even if the last fails
-func (pipe *duplexPipe) Close() (err error) {
-	err = pipe.inPipe.Close()
-	if e := pipe.outPipe.Close(); e != nil {
-		err = e
-	}
-	if e := os.Remove(pipe.inPipe.Name()); e != nil {
-		err = e
-	}
-	if e := os.Remove(pipe.outPipe.Name()); e != nil {
+func (pipe *pipe) Close() (err error) {
+	err = pipe.file.Close()
+	if e := os.Remove(pipe.name); e != nil {
 		err = e
 	}
 	return
