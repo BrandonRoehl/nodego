@@ -1,9 +1,7 @@
-package nodego
+package pipes
 
 import (
 	"errors"
-	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -66,41 +64,39 @@ func getRandomPipeNames() (pipeIn, pipeOut string, err error) {
 
 // NewDuplexPipe returns an io.ReaadWriteCloser that maintains an in and an out
 // pipe to write and read from for inter-process comunication
-func NewDuplexPipe() (DuplexPipe, error) {
+func NewDuplexPipe() (Pipe, error) {
 	pipeIn, pipeOut, err := getRandomPipeNames()
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println(pipeIn)
-	fmt.Println(pipeOut)
-	fmt.Println()
-
 	// READ PIPE
-	inPipe, err := makePipe(pipeIn, os.O_RDONLY)
+	inPipe, err := NewFifoPipe(pipeIn, os.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}
 
 	// WRITE PIPE
-	outPipe, err := makePipe(pipeOut, os.O_WRONLY|os.O_APPEND)
+	outPipe, err := NewFifoPipe(pipeOut, os.O_WRONLY|os.O_APPEND)
 	if err != nil {
 		return nil, err
 	}
 
 	return &duplexPipe{
-		inPipe:  *inPipe,
-		outPipe: *outPipe,
+		inPipe:  inPipe,
+		outPipe: outPipe,
 	}, nil
 }
 
-// DuplexPipe is the interface to interact with the pipes that are created
-type DuplexPipe interface {
-	io.ReadWriteCloser
+type duplexPipe struct {
+	inPipe, outPipe Pipe
 }
 
-type duplexPipe struct {
-	inPipe, outPipe fifopipe
+func (pipe *duplexPipe) Name() StreamNames {
+	return StreamNames{
+		In:  pipe.inPipe.Name().In,
+		Out: pipe.outPipe.Name().Out,
+	}
 }
 
 func (pipe *duplexPipe) Write(p []byte) (n int, err error) {

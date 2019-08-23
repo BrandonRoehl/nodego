@@ -1,4 +1,4 @@
-package nodego
+package pipes
 
 import (
 	"errors"
@@ -15,7 +15,9 @@ type fifopipe struct {
 	closed bool
 }
 
-func makePipe(name string, flag int) (*fifopipe, error) {
+// NewFifoPipe returns an io.ReaadWriteCloser that maintains an in and an out
+// pipe to write and read from for inter-process comunication
+func NewFifoPipe(name string, flag int) (Pipe, error) {
 	if err := unix.Mkfifo(name, 0600); err != nil {
 		return nil, err
 	}
@@ -61,6 +63,13 @@ func (pipe *fifopipe) Open() (err error) {
 	}
 	pipe.file, err = os.OpenFile(pipe.name, pipe.flag, os.ModeNamedPipe)
 	return
+}
+
+func (pipe *fifopipe) Name() StreamNames {
+	return StreamNames{
+		In:  pipe.name,
+		Out: pipe.name,
+	}
 }
 
 // Close will close all file connections and delete all the pipes
