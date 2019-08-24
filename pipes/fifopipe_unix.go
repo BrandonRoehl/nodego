@@ -9,7 +9,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type unixFifoPipe struct {
+// fifoPipe is a standard unix fifo pipe file wrapped in
+// a convience contructor and io.ReadWriteCloser
+type fifoPipe struct {
 	name   string
 	flag   int
 	file   *os.File
@@ -33,7 +35,7 @@ func NewFifoPipe(name string, flag int) (Pipe, error) {
 		return nil, err
 	}
 
-	return &unixFifoPipe{
+	return &fifoPipe{
 		name:   name,
 		flag:   flag,
 		opened: false,
@@ -42,7 +44,7 @@ func NewFifoPipe(name string, flag int) (Pipe, error) {
 }
 
 // tryOpen is a private method to attempt an open on every read or write
-func (pipe *unixFifoPipe) tryOpen() (err error) {
+func (pipe *fifoPipe) tryOpen() (err error) {
 	if !pipe.opened {
 		err = pipe.Open()
 	} else if pipe.closed {
@@ -52,7 +54,7 @@ func (pipe *unixFifoPipe) tryOpen() (err error) {
 }
 
 // Write will try and connect to a pipe if this is the first time or delegate to the file writer
-func (pipe *unixFifoPipe) Write(p []byte) (n int, err error) {
+func (pipe *fifoPipe) Write(p []byte) (n int, err error) {
 	if err = pipe.tryOpen(); err != nil {
 		return
 	}
@@ -60,7 +62,7 @@ func (pipe *unixFifoPipe) Write(p []byte) (n int, err error) {
 }
 
 // Read will try and connect to a pipe if this is the first time or delegate to the file reader
-func (pipe *unixFifoPipe) Read(p []byte) (n int, err error) {
+func (pipe *fifoPipe) Read(p []byte) (n int, err error) {
 	if err = pipe.tryOpen(); err != nil {
 		return
 	}
@@ -68,7 +70,7 @@ func (pipe *unixFifoPipe) Read(p []byte) (n int, err error) {
 }
 
 // Open will open the pipe if there is no file there already
-func (pipe *unixFifoPipe) Open() (err error) {
+func (pipe *fifoPipe) Open() (err error) {
 	if pipe.opened {
 		return errors.New("Pipes can't be reopened")
 	}
@@ -76,7 +78,8 @@ func (pipe *unixFifoPipe) Open() (err error) {
 	return
 }
 
-func (pipe *unixFifoPipe) Name() StreamNames {
+// Name returns the name that was used to open the file as the in and out stream name
+func (pipe *fifoPipe) Name() StreamNames {
 	return StreamNames{
 		In:  pipe.name,
 		Out: pipe.name,
@@ -85,7 +88,7 @@ func (pipe *unixFifoPipe) Name() StreamNames {
 
 // Close will close all file connections and delete all the pipes
 // an attempt is made for every opperation even if the last fails
-func (pipe *unixFifoPipe) Close() (err error) {
+func (pipe *fifoPipe) Close() (err error) {
 	err = pipe.file.Close()
 	if e := os.Remove(pipe.name); e != nil {
 		err = e
