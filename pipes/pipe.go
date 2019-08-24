@@ -1,6 +1,8 @@
 package pipes
 
-import "io"
+import (
+	"io"
+)
 
 // Pipe is the interface to interact with the pipes that are created
 type Pipe interface {

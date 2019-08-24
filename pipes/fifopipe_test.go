@@ -11,10 +11,10 @@ import (
 func TestSinglePipe(t *testing.T) {
 	testMsg := []byte("test message")
 
-	pipeName, _, err := getRandomPipeNames()
+	pipeNames, err := getRandomTempFiles([]string{"*.pipe"})
 	assert.NoError(t, err, "Expected error to be nil when getting names")
 
-	pipe, err := NewFifoPipe(pipeName, os.O_RDWR)
+	pipe, err := NewFifoPipe(pipeNames[0], os.O_RDWR)
 	assert.NoError(t, err, "Expected error to be nil when creating pipe")
 
 	// Defer close for a premeture test termination cleanup
