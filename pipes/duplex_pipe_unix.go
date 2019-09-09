@@ -11,15 +11,20 @@ func NewDuplexPipe() (Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
+	return NewNamedDuplexPipe(pipeIn, pipeOut)
+}
 
+// NewNamedDuplexPipe returns an io.ReaadWriteCloser that maintains an in and an out
+// pipe to write and read from for inter-process comunication
+func NewNamedDuplexPipe(inFile, outFile string) (Pipe, error) {
 	// READ PIPE
-	inPipe, err := NewFifoPipe(pipeIn, os.O_RDONLY)
+	inPipe, err := NewFifoPipe(inFile, os.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}
 
 	// WRITE PIPE
-	outPipe, err := NewFifoPipe(pipeOut, os.O_WRONLY|os.O_APPEND)
+	outPipe, err := NewFifoPipe(outFile, os.O_WRONLY|os.O_APPEND)
 	if err != nil {
 		return nil, err
 	}

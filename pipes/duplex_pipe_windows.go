@@ -17,12 +17,12 @@ func NewDuplexPipe() (Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewNamedDuplexPipe(pipeNames[0])
+	return NewNamedDuplexPipe(pipeNames[0], "")
 }
 
 // NewNamedDuplexPipe returns an io.ReaadWriteCloser that maintains an in and an out
 // pipe to write and read from for inter-process comunication
-func NewNamedDuplexPipe(name string) (Pipe, error) {
+func NewNamedDuplexPipe(name, _ string) (Pipe, error) {
 	return &duplexPipe{
 		in:     nil,
 		out:    nil,
@@ -95,6 +95,10 @@ func (pipe *duplexPipe) Name() StreamNames {
 // Close will close all file connections and delete all the pipes
 // an attempt is made for every opperation even if the last fails
 func (pipe *duplexPipe) Close() (err error) {
+	if pipe.closed {
+		return errors.New("Pipe is already closed")
+	}
+
 	err = pipe.in.Close()
 	if e := pipe.out.Close(); e != nil {
 		err = e
