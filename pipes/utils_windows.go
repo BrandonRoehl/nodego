@@ -3,5 +3,5 @@
 package pipes
 
 func tempDir() string {
-	return `\\.pipes\`
+	return `\\.\pipe\`
 }
