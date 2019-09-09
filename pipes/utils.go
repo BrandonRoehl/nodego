@@ -39,7 +39,7 @@ func getRandomTempFiles(patterns []string) (files []string, err error) {
 	var i int
 	const attempts = 10
 
-	tmpDir := os.TempDir()
+	tmpDir := tempDir()
 	if _, err = os.Stat(tmpDir); err != nil {
 		return
 	}
