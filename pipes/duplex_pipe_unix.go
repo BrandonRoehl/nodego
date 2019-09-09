@@ -4,12 +4,6 @@ package pipes
 
 import "os"
 
-// getRandomPipeNames on unix returns two different files in temp space ending in dot pipe
-func getRandomPipeNames() (pipeIn, pipeOut string, err error) {
-	pipes, err := getRandomTempFiles([]string{"*.in.pipe", "*.out.pipe"})
-	return pipes[0], pipes[1], err
-}
-
 // NewDuplexPipe returns an io.ReaadWriteCloser that maintains an in and an out
 // pipe to write and read from for inter-process comunication
 func NewDuplexPipe() (Pipe, error) {
